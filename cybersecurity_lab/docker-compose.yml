@@ -1,18 +1,39 @@
 version: '3.8'
 
 services:
-  # 1. Landing Page (Solo sirve el HTML en el puerto 80)
+  # Gateway / Reverse Proxy & Landing Page
   nginx:
-    image: nginx:alpine
+    image: owasp/modsecurity-crs:nginx
+    environment:
+      - PORT=8080
+      - PROXY_SSL=off
+      - MODSEC_RULE_ENGINE=On
+      - PARANOIA=1
+      - ANOMALY_INBOUND=5
+      - ANOMALY_OUTBOUND=4
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # IMPORTANTE: montar como plantilla (no como nginx.conf directo)
+      - ./nginx/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
       - ./landing_page/src:/usr/share/nginx/html:ro
     ports:
-      - "80:80" # Solo puerto 80
+      - "80:8080"
+      - "8001:8001"
+      - "8002:8002"
+      - "8003:8003"
+      - "8004:8004"
+      - "8005:8005"
+      - "8006:8006"
+    depends_on:
+      - xss_blog
+      - file_upload
+      - sqli_login
+      - ssti_flask
+      - xxe_rce
+      - xsstocsrf_profile
     networks:
       - lab_network
 
-  # --- EJERCICIO 1: XSS (Protegido por WAF en puerto 8001) ---
+  # XSS Challenge
   xss_blog:
     build: ./xss_blog
     restart: always
@@ -26,19 +47,6 @@ services:
     networks:
       - lab_network
 
-  waf_xss:
-    image: owasp/modsecurity-crs:nginx
-    ports:
-      - "8001:8080" # El puerto externo 8001 ahora es el WAF
-    environment:
-      - PROXY_PASS_URL=http://xss_blog:80
-      - PORT=8080
-      - PARANOIA=1
-    depends_on:
-      - xss_blog
-    networks:
-      - lab_network
-
   xss_db:
     image: mariadb:10.5
     environment:
@@ -49,27 +57,14 @@ services:
     networks:
       - lab_network
 
-  # --- EJERCICIO 2: File Upload (Protegido por WAF en puerto 8002) ---
+  # File Upload Challenge
   file_upload:
     build: ./file_upload
     restart: always
     networks:
       - lab_network
 
-  waf_upload:
-    image: owasp/modsecurity-crs:nginx
-    ports:
-      - "8002:8080"
-    environment:
-      - PROXY_PASS_URL=http://file_upload:80
-      - PORT=8080
-      - PARANOIA=1
-    depends_on:
-      - file_upload
-    networks:
-      - lab_network
-
-  # --- EJERCICIO 3: SQL Injection (Protegido por WAF en puerto 8003) ---
+  # SQL Injection Challenge
   sqli_login:
     build: ./sqli_login
     restart: always
@@ -83,19 +78,6 @@ services:
     networks:
       - lab_network
 
-  waf_sqli:
-    image: owasp/modsecurity-crs:nginx
-    ports:
-      - "8003:8080"
-    environment:
-      - PROXY_PASS_URL=http://sqli_login:80
-      - PORT=8080
-      - PARANOIA=1
-    depends_on:
-      - sqli_login
-    networks:
-      - lab_network
-
   sqli_db:
     image: mariadb:10.5
     environment:
@@ -106,63 +88,24 @@ services:
     networks:
       - lab_network
 
-  # --- EJERCICIO 4: SSTI (Protegido por WAF en puerto 8004) ---
+  # SSTI Challenge (Python Flask)
   ssti_flask:
     build: ./ssti_flask
     restart: always
     networks:
       - lab_network
 
-  waf_ssti:
-    image: owasp/modsecurity-crs:nginx
-    ports:
-      - "8004:8080"
-    environment:
-      - PROXY_PASS_URL=http://ssti_flask:5000 # Ojo, Flask va por el 5000
-      - PORT=8080
-      - PARANOIA=1
-    depends_on:
-      - ssti_flask
-    networks:
-      - lab_network
-
-  # --- EJERCICIO 5: XXE (Protegido por WAF en puerto 8005) ---
+  # XXE to RCE Challenge (PHP + Expect)
   xxe_rce:
     build: ./xxe_rce
     restart: always
     networks:
       - lab_network
 
-  waf_xxe:
-    image: owasp/modsecurity-crs:nginx
-    ports:
-      - "8005:8080"
-    environment:
-      - PROXY_PASS_URL=http://xxe_rce:80
-      - PORT=8080
-      - PARANOIA=1
-    depends_on:
-      - xxe_rce
-    networks:
-      - lab_network
-
-  # --- EJERCICIO 6: CSRF (Protegido por WAF en puerto 8006) ---
+  # XSS to CSRF Challenge (PHP Profile)
   xsstocsrf_profile:
     build: ./xsstocsrf_profile
     restart: always
-    networks:
-      - lab_network
-
-  waf_csrf:
-    image: owasp/modsecurity-crs:nginx
-    ports:
-      - "8006:8080"
-    environment:
-      - PROXY_PASS_URL=http://xsstocsrf_profile:80
-      - PORT=8080
-      - PARANOIA=1
-    depends_on:
-      - xsstocsrf_profile
     networks:
       - lab_network
 
