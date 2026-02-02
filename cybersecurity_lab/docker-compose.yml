@@ -3,20 +3,12 @@ version: '3.8'
 services:
   # Gateway / Reverse Proxy & Landing Page
   nginx:
-    image: owasp/modsecurity-crs:nginx
-    environment:
-      - PORT=8080
-      - PROXY_SSL=off
-      - MODSEC_RULE_ENGINE=On
-      - PARANOIA=1
-      - ANOMALY_INBOUND=5
-      - ANOMALY_OUTBOUND=4
+    image: nginx:alpine
     volumes:
-      # IMPORTANTE: montar como plantilla (no como nginx.conf directo)
-      - ./nginx/nginx.conf:/etc/nginx/templates/nginx.conf.template:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./landing_page/src:/usr/share/nginx/html:ro
     ports:
-      - "80:8080"
+      - "80:80"
       - "8001:8001"
       - "8002:8002"
       - "8003:8003"
